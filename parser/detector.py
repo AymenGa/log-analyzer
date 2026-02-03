@@ -1,6 +1,6 @@
 import re
-from apache_parser import ApacheParser
-from linux_auth_parser import LinuxAuthParser
+from parser.apache_parser import ApacheParser
+from parser.linux_auth_parser import LinuxAuthParser
 
 class LogDetector:
     def __init__(self, filepath):

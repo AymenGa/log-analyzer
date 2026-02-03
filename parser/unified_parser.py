@@ -1,4 +1,4 @@
-from detector import LogDetector
+from parser.detector import LogDetector
 
 class UnifiedParser:
     """

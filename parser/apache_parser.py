@@ -1,5 +1,5 @@
 import re
-from base_parser import BaseParser
+from parser.base_parser import BaseParser
 
 class ApacheParser(BaseParser):
     def parse_line(self, line):

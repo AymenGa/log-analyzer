@@ -27,7 +27,7 @@ class UnifiedParser:
             unified = {
                 "timestamp": parsed.get("timestamp"),
                 "ip": parsed.get("ip"),
-                "event": parsed.get("event"),  
+                "event_type": parsed.get("event"),  
                 "user": parsed.get("username"),
                 "method": parsed.get("method"),
                 "url": parsed.get("path") ,

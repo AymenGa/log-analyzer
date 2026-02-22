@@ -1,16 +1,12 @@
 from parser.unified_parser import UnifiedParser
 from Analytics.detection import SecurityDetector
-from Analytics.alerts import AlertEngine
 
 # Parse Linux auth log
 up = UnifiedParser("logs/sample_auth.log")
 events = up.parse()
 
 detector = SecurityDetector(events)
-engine = AlertEngine(detector)
 
-engine.generate_bruteforce_alerts(threshold=2)
-engine.generate_suspicious_user_alerts(threshold=2)
-
-for alert in engine.get_alerts():
-    print(alert)
+print("Brute-force IPs (frequency):", detector.detect_bruteforce_ips(threshold=2))
+print("Brute-force IPs (time window):", detector.detect_bruteforce_time_window(threshold=2, window_seconds=180))
+print("Suspicious users:", detector.detect_suspicious_users(threshold=2))

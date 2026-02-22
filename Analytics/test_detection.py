@@ -20,5 +20,11 @@ print("Brute-force IPs (time window):",
           window_seconds=120
       ))
 
-print("Suspicious users:",
+print("Suspicious users (frequency):",
       detector.detect_suspicious_users(threshold=2))
+
+print("Suspicious users (time window):",
+      detector.detect_suspicious_users_time_window(
+          threshold=3,
+          window_seconds=60
+      ))

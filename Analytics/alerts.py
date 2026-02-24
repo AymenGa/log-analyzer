@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from typing import List, Dict, Any, Optional
 
@@ -25,7 +25,7 @@ class AlertEngine:
                 "alert_type": "BruteForceAttack",
                 "source_ip": ip,
                 "evidence": {"failed_attempts": count},
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self._apply_risk(alert)
             self.alerts.append(alert)
@@ -38,7 +38,7 @@ class AlertEngine:
                 "alert_type": "SuspiciousUserActivity",
                 "user": user,
                 "evidence": {"failed_attempts": count},
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self._apply_risk(alert)
             self.alerts.append(alert)
@@ -54,7 +54,7 @@ class AlertEngine:
                     "failed_attempts": info["count"],
                     "duration_seconds": info["duration_seconds"]
                 },
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self._apply_risk(alert)
             self.alerts.append(alert)
@@ -70,7 +70,7 @@ class AlertEngine:
                     "failed_attempts": info.get("count"),
                     "duration_seconds": info.get("duration_seconds")
                 },
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self._apply_risk(alert)
             self.alerts.append(alert)
@@ -199,7 +199,7 @@ class AlertEngine:
                     "failed_attempts": info.get("count"),
                     "duration_seconds": info.get("duration_seconds")
                 },
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self.alerts.append(alert)
             self.notifier(alert)
@@ -220,7 +220,7 @@ class AlertEngine:
                     "failed_attempts": info.get("count"),
                     "duration_seconds": info.get("duration_seconds")
                 },
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self.alerts.append(alert)
             self.notifier(alert)
@@ -239,7 +239,7 @@ class AlertEngine:
                     "alert_type": "BruteForceAttackFrequency",
                     "source_ip": ip,
                     "evidence": {"failed_attempts": count},
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 self._apply_risk(alert)
                 self.alerts.append(alert)

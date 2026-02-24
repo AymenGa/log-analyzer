@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "log-analyzer"
+version = "0.1.0"
+description = "CLI tool to analyze web and auth logs, detect brute-force attacks, and stream live alerts with email notifications."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Aymen GA" }
+]
+dependencies = [
+  "rich",
+  "keyring",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+]
+
+[project.scripts]
+log-analyzer = "main:cli"
+

@@ -61,7 +61,8 @@ def analysis_mode(path, alerts_out: str | None = None):
         print("No alerts")
 
 
-if __name__ == "__main__":
+def cli() -> None:
+    """Entry point for the log-analyzer CLI."""
     parser = argparse.ArgumentParser(description="Log Analyzer CLI")
     parser.add_argument("--file", help="Analyze file once")
     parser.add_argument("--monitor", help="Monitor file live")
@@ -164,3 +165,7 @@ if __name__ == "__main__":
                 print("Test email failed. See output above for details.")
     else:
         parser.print_help()
+
+
+if __name__ == "__main__":
+    cli()

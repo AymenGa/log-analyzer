@@ -1,5 +1,5 @@
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 
 def parse_time(ts):
@@ -11,14 +11,14 @@ def parse_time(ts):
     # first try the expected format directly
     try:
         dt = datetime.strptime(ts.strip(), "%b %d %H:%M:%S")
-        return dt.replace(year=datetime.utcnow().year)
+        return dt.replace(year=datetime.now(timezone.utc).year)
     except Exception:
         # try to extract a substring like 'Nov 27 12:01:12' from messy input
         m = re.search(r'([A-Za-z]{3}\s+\d+\s+\d{2}:\d{2}:\d{2})', ts)
         if m:
             try:
                 dt = datetime.strptime(m.group(1), "%b %d %H:%M:%S")
-                return dt.replace(year=datetime.utcnow().year)
+                return dt.replace(year=datetime.now(timezone.utc).year)
             except Exception:
                 return None
         return None

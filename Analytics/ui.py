@@ -84,17 +84,22 @@ def render_dashboard(summary, pretty=True):
             host = input("SMTP host (e.g. smtp.gmail.com): ").strip()
             port = input("SMTP port (e.g. 587): ").strip()
             user = input("SMTP username (leave blank for none): ").strip()
-            password = input("SMTP password (will be saved in config): ").strip()
+            password = input("SMTP password (stored securely if keyring available, otherwise kept only in memory): ").strip()
             from_addr = input("From address (alerts from): ").strip()
             to_addrs = input("Recipient addresses (comma-separated): ").strip()
             smtp = {
                 'host': host or None,
                 'port': int(port) if port else None,
                 'user': user or None,
-                'password': password or None,
                 'from_addr': from_addr or None,
                 'to_addrs': to_addrs
             }
+            # Persist password in the OS keyring if supported instead of plaintext config.
+            if hasattr(_config, "save_smtp_password"):
+                _config.save_smtp_password(user or None, host or None, password or None)
+            else:
+                # Legacy fallback: store in config (less secure, kept for compatibility).
+                smtp['password'] = password or None
             cfg['smtp'] = smtp
             try:
                 _config.save_config(cfg)

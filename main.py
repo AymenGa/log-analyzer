@@ -44,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("--smtp-host", help="SMTP host for email notifier")
     parser.add_argument("--smtp-port", help="SMTP port", type=int)
     parser.add_argument("--smtp-user", help="SMTP username")
-    parser.add_argument("--smtp-pass", help="SMTP password")
+    parser.add_argument("--smtp-pass", help="SMTP password (not persisted; use keyring-backed config for storage)")
     parser.add_argument("--email-from", help="From address for alerts")
     parser.add_argument("--email-to", help="Comma-separated recipient addresses")
     parser.add_argument("--email-test", action="store_true", help="Send a single test email using provided or saved SMTP config")
@@ -76,22 +76,37 @@ if __name__ == "__main__":
         # build SMTP config from CLI args overriding saved config
         saved = _config.load_config() or {}
         saved_smtp = saved.get('smtp') or {}
+
+        host = args.smtp_host or saved_smtp.get('host')
+        port = args.smtp_port or saved_smtp.get('port')
+        user = args.smtp_user or saved_smtp.get('user')
+
+        # Resolve password in order of precedence:
+        # 1) explicit CLI flag
+        # 2) keyring (if available)
+        # 3) legacy plaintext field from config (if still present)
+        password = args.smtp_pass or None
+        if not password and hasattr(_config, "load_smtp_password"):
+            password = _config.load_smtp_password(user, host)
+        if not password:
+            password = saved_smtp.get('password')
+
+        # prompt for password at runtime if requested and not resolved yet
+        if args.prompt_pass and not password:
+            try:
+                import getpass
+                password = getpass.getpass(prompt='SMTP password: ')
+            except Exception:
+                password = None
+
         smtp_cfg = {
-            'host': args.smtp_host or saved_smtp.get('host'),
-            'port': args.smtp_port or saved_smtp.get('port'),
-            'user': args.smtp_user or saved_smtp.get('user'),
-            'password': args.smtp_pass or saved_smtp.get('password'),
+            'host': host,
+            'port': port,
+            'user': user,
+            'password': password,
             'from_addr': args.email_from or saved_smtp.get('from_addr'),
             'to_addrs': args.email_to or saved_smtp.get('to_addrs')
         }
-
-        # prompt for password at runtime if requested and not provided
-        if args.prompt_pass and not smtp_cfg.get('password'):
-            try:
-                import getpass
-                smtp_cfg['password'] = getpass.getpass(prompt='SMTP password: ')
-            except Exception:
-                smtp_cfg['password'] = None
 
         # validate
         if not smtp_cfg.get('host'):

@@ -2,6 +2,12 @@ import time
 from parser.detector import LogDetector
 from Analytics.detection import SecurityDetector
 from Analytics.alerts import AlertEngine
+import os
+
+try:
+    from notifiers.email import email_notifier
+except Exception:
+    email_notifier = None
 
 
 def tail_f(path):
@@ -33,7 +39,7 @@ def build_unified(parsed):
     }
 
 
-def monitor(path, time_window_threshold=3, time_window_seconds=60, freq_threshold=20, show_frequency=False):
+def monitor(path, time_window_threshold=3, time_window_seconds=60, freq_threshold=20, show_frequency=False, smtp_config=None):
     detector = LogDetector(path).detect()
     if detector is None:
         print("No parser detected for this file. Aborting monitor.")
@@ -41,6 +47,39 @@ def monitor(path, time_window_threshold=3, time_window_seconds=60, freq_threshol
 
     sd = SecurityDetector([])
     ae = AlertEngine(sd)
+
+    # configure email notifier: prefer CLI-provided smtp_config, else fall back to env vars
+    cfg = None
+    if smtp_config:
+        cfg = smtp_config
+    else:
+        # build from environment if available
+        host = os.getenv('SMTP_HOST')
+        to = os.getenv('EMAIL_TO')
+        if host or to:
+            cfg = {
+                'host': os.getenv('SMTP_HOST'),
+                'port': int(os.getenv('SMTP_PORT')) if os.getenv('SMTP_PORT') else None,
+                'user': os.getenv('SMTP_USER'),
+                'password': os.getenv('SMTP_PASS'),
+                'from_addr': os.getenv('EMAIL_FROM'),
+                'to_addrs': os.getenv('EMAIL_TO')
+            }
+
+    if email_notifier is not None:
+        # determine dry_run: true unless cfg provides both host and to_addrs
+        dry_run = True
+        if cfg and cfg.get('host') and cfg.get('to_addrs'):
+            dry_run = False
+
+        # if smtp_config doesn't include password and an env var is set, pick it up
+        if cfg and not cfg.get('password') and os.getenv('SMTP_PASS'):
+            cfg['password'] = os.getenv('SMTP_PASS')
+
+        if cfg:
+            ae.notifier = lambda alert: email_notifier(alert, smtp_config=cfg, dry_run=dry_run)
+        else:
+            ae.notifier = lambda alert: email_notifier(alert, dry_run=True)
 
     print(f"Monitoring {path} (time-window={time_window_seconds}s, threshold={time_window_threshold})")
 

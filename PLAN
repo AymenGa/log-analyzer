@@ -1,0 +1,27 @@
+Plan (concise, phase-by-phase)
+
+Phase 1 — Done
+
+Basic CLI parser for failed logins.
+Phase 2 — Done
+
+Base parser utilities (read_lines, extract_ip).
+ApacheParser, LinuxAuthParser.
+Log format auto-detection.
+Phase 3 — Done
+
+UnifiedParser to standardize events.
+Frequency analytics for IPs/users/URLs.
+Security detection rules (brute-force, suspicious activity).
+Phase 4 — Done
+
+Alert engine with normalized events and risk scoring.
+Time-window detectors for IPs and users.
+UI improvements and live-monitor preferences.
+Email notifier UX: persistent config (config.py), interactive registration (ui.py), --email-test, runtime password prompt, HTML emails + alert.json attachment.
+Phase 5 — Remaining (prioritized)
+Next: implement Phase 5.1 → integrate keyring to avoid plaintext passwords. (security first)
+Then: Phase 5.3 → persist alerts and add JSON export (alerts.json) so data is exportable.
+Then: Phase 5.2 → add retry/backoff + structured logging for reliable delivery and observability.
+Then: Phase 5.4–5.5 → add tests, CI, package CLI and write quickstart docs.
+After those PHASE 6 , build Docker support and the professional README.

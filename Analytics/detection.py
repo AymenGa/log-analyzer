@@ -51,6 +51,9 @@ class SecurityDetector:
         for e in failed_events:
             user = e["user"]
             time = parse_time(e["timestamp"])
+            if time is None:
+                # skip events with unparseable timestamps
+                continue
             attempts_by_user.setdefault(user, []).append(time)
 
         alerts = {}
@@ -96,6 +99,9 @@ class SecurityDetector:
         for e in failed_events:
             ip = e["ip"]
             time = parse_time(e["timestamp"])
+            if time is None:
+                # skip events with unparseable timestamps
+                continue
             attempts_by_ip.setdefault(ip, []).append(time)
 
         alerts = {}

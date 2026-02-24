@@ -9,9 +9,15 @@ from Analytics.frequency import FrequencyAnalyzer
 from Analytics.detection import SecurityDetector
 from Analytics.alerts import AlertEngine
 from monitor import monitor
+try:
+    # pretty console UI for alerts and summaries
+    from Analytics.ui import render_alert, render_dashboard
+except Exception:
+    render_alert = None
+    render_dashboard = None
 
 
-def analysis_mode(path):
+def analysis_mode(path, alerts_out: str | None = None):
     up = UnifiedParser(path)
     events = up.parse()
 
@@ -27,8 +33,30 @@ def analysis_mode(path):
     alerts = ae.get_alerts()
     if alerts:
         print("\nAlerts:")
-        for a in alerts:
-            print(a)
+        if render_alert:
+            # Pretty Rich-based rendering for each alert
+            for a in alerts:
+                render_alert(a, pretty=True)
+        else:
+            for a in alerts:
+                print(a)
+
+        # Optional dashboard by severity if available
+        if render_dashboard:
+            summary = {}
+            for a in alerts:
+                sev = a.get("severity", "UNKNOWN")
+                summary[sev] = summary.get(sev, 0) + 1
+            print()
+            render_dashboard(summary, pretty=True)
+
+        # Persist alerts to JSON so they are exportable
+        if alerts_out:
+            try:
+                ae.to_json_file(alerts_out)
+                print(f"\nSaved {len(alerts)} alerts to {alerts_out}")
+            except Exception as e:
+                print(f"\nFailed to save alerts to JSON: {e}")
     else:
         print("No alerts")
 
@@ -39,6 +67,10 @@ if __name__ == "__main__":
     parser.add_argument("--monitor", help="Monitor file live")
     parser.add_argument("--window", type=int, default=60, help="Time-window seconds for live mode")
     parser.add_argument("--threshold", type=int, default=3, help="Attempts threshold for time-window alerts")
+    parser.add_argument(
+        "--alerts-json",
+        help="Path to write alerts JSON (batch or live). Defaults to a per-user alerts.json under the app config directory if not provided in batch mode.",
+    )
     parser.add_argument("--show-frequency", action="store_true", help="Show frequency alerts in live monitor")
     # SMTP / email options (can be set via env or CLI)
     parser.add_argument("--smtp-host", help="SMTP host for email notifier")
@@ -52,7 +84,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.file:
-        analysis_mode(args.file)
+        # Determine where to write alerts JSON for batch mode
+        alerts_out = args.alerts_json or _config.alerts_path()
+        analysis_mode(args.file, alerts_out=alerts_out)
     elif args.monitor:
         smtp_cfg = None
         if args.smtp_host or args.smtp_port or args.smtp_user or args.smtp_pass or args.email_from or args.email_to:
@@ -70,7 +104,8 @@ if __name__ == "__main__":
             time_window_seconds=args.window,
             time_window_threshold=args.threshold,
             show_frequency=args.show_frequency,
-            smtp_config=smtp_cfg
+            smtp_config=smtp_cfg,
+            alerts_json=args.alerts_json,
         )
     elif args.email_test:
         # build SMTP config from CLI args overriding saved config

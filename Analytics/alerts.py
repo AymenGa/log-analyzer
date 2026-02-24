@@ -1,4 +1,6 @@
 from datetime import datetime
+import json
+from typing import List, Dict, Any, Optional
 
 
 class AlertEngine:
@@ -12,6 +14,8 @@ class AlertEngine:
         self._seen = set()
         # notifier callback (callable(alert_dict)) - by default prints to console
         self.notifier = self._console_notify
+        # optional path to persist alerts as JSON
+        self._alerts_path: Optional[str] = None
 
     def generate_bruteforce_alerts(self, threshold=3):
         results = self.detector.detect_bruteforce_ips(threshold)
@@ -82,6 +86,26 @@ class AlertEngine:
 
     def get_alerts(self):
         return self.alerts
+
+    def set_alerts_path(self, path: str) -> None:
+        """Configure a JSON file path where alerts will be persisted."""
+        self._alerts_path = path
+
+    def to_json_file(self, path: str) -> None:
+        """Persist all collected alerts to a JSON file."""
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(self.alerts, f, indent=2)
+        except Exception:
+            # Persistence should never break alerting; swallow errors here.
+            pass
+
+    def _persist_if_configured(self) -> None:
+        """Persist alerts to configured path (if any)."""
+        if not self._alerts_path:
+            return
+        # rewrite full list; alerts volumes are expected to be small
+        self.to_json_file(self._alerts_path)
 
     def _console_notify(self, alert):
         # delegate to rich-based renderer if available
@@ -179,6 +203,7 @@ class AlertEngine:
             }
             self.alerts.append(alert)
             self.notifier(alert)
+            self._persist_if_configured()
 
         # run time-window user detections
         user_alerts = self.detector.detect_suspicious_users_time_window(threshold=time_window_threshold, window_seconds=time_window_seconds)
@@ -199,6 +224,7 @@ class AlertEngine:
             }
             self.alerts.append(alert)
             self.notifier(alert)
+            self._persist_if_configured()
 
         # optionally, run light frequency check for immediate notable counts (capped)
         # in live monitor we typically suppress frequency alerts unless explicitly requested

@@ -26,6 +26,11 @@ def config_path():
     return os.path.join(_get_base_dir(), 'config.json')
 
 
+def alerts_path():
+    """Return the path where alerts JSON will be stored."""
+    return os.path.join(_get_base_dir(), 'alerts.json')
+
+
 def _smtp_key(user: str | None, host: str | None) -> str:
     """Build a stable keyring identifier for SMTP credentials."""
     user_part = (user or "").strip()

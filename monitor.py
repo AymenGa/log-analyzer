@@ -39,7 +39,7 @@ def build_unified(parsed):
     }
 
 
-def monitor(path, time_window_threshold=3, time_window_seconds=60, freq_threshold=20, show_frequency=False, smtp_config=None):
+def monitor(path, time_window_threshold=3, time_window_seconds=60, freq_threshold=20, show_frequency=False, smtp_config=None, alerts_json: str | None = None):
     detector = LogDetector(path).detect()
     if detector is None:
         print("No parser detected for this file. Aborting monitor.")
@@ -47,6 +47,10 @@ def monitor(path, time_window_threshold=3, time_window_seconds=60, freq_threshol
 
     sd = SecurityDetector([])
     ae = AlertEngine(sd)
+
+    # optional JSON persistence for live alerts
+    if alerts_json:
+        ae.set_alerts_path(alerts_json)
 
     # configure email notifier: prefer CLI-provided smtp_config, else fall back to env vars
     cfg = None

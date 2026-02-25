@@ -1,5 +1,7 @@
 import argparse
 import datetime
+import json
+import os
 try:
     import config as _config
 except Exception:
@@ -10,14 +12,45 @@ from Analytics.detection import SecurityDetector
 from Analytics.alerts import AlertEngine
 from monitor import monitor
 try:
-    # pretty console UI for alerts and summaries
-    from Analytics.ui import render_alert, render_dashboard
+    from Analytics.ui import render_alert, render_dashboard, prompt_email_registration_if_needed
 except Exception:
     render_alert = None
     render_dashboard = None
+    prompt_email_registration_if_needed = None
 
 
-def analysis_mode(path, alerts_out: str | None = None):
+def _has_smtp_overrides(args) -> bool:
+    return bool(
+        args.smtp_host
+        or args.smtp_port
+        or args.smtp_user
+        or args.smtp_pass
+        or args.email_from
+        or args.email_to
+    )
+
+
+def _env_has_smtp_overrides() -> bool:
+    return bool(os.getenv("SMTP_HOST") or os.getenv("EMAIL_TO"))
+
+
+def _prompt_alerts_json_path(default_path: str) -> str:
+    import sys
+
+    if not sys.stdin.isatty():
+        return default_path
+    try:
+        raw = input(f"Alerts JSON output file (Enter for default: {default_path}): ").strip()
+    except Exception:
+        return default_path
+    if not raw:
+        return default_path
+    if not raw.lower().endswith(".json"):
+        raw = raw + ".json"
+    return raw
+
+
+def analysis_mode(path, alerts_out: str | None = None, frequency_out: str | None = None):
     up = UnifiedParser(path)
     events = up.parse()
 
@@ -25,6 +58,33 @@ def analysis_mode(path, alerts_out: str | None = None):
     print("\nFrequency: top IPs")
     for ip, count in fa.top_ips(5):
         print(f" - {ip}: {count}")
+
+    print("\nFrequency: top users")
+    for user, count in fa.top_users(5):
+        print(f" - {user}: {count}")
+
+    print("\nFrequency: top URLs")
+    for url, count in fa.top_urls(5):
+        print(f" - {url}: {count}")
+
+    # Build frequency data structure for optional JSON export
+    freq_data = {
+        "top_ips": [{"ip": ip, "count": count} for ip, count in fa.top_ips(5)],
+        "top_users": [
+            {"user": user, "count": count} for user, count in fa.top_users(5)
+        ],
+        "top_urls": [
+            {"url": url, "count": count} for url, count in fa.top_urls(5)
+        ],
+    }
+
+    if frequency_out:
+        try:
+            with open(frequency_out, "w", encoding="utf-8") as f:
+                json.dump(freq_data, f, indent=2)
+            print(f"\nSaved frequency data to {frequency_out}")
+        except Exception as e:
+            print(f"\nFailed to save frequency data to JSON: {e}")
 
     sd = SecurityDetector(events)
     ae = AlertEngine(sd)
@@ -72,6 +132,10 @@ def cli() -> None:
         "--alerts-json",
         help="Path to write alerts JSON (batch or live). Defaults to a per-user alerts.json under the app config directory if not provided in batch mode.",
     )
+    parser.add_argument(
+        "--frequency-json",
+        help="Path to write frequency statistics JSON (batch mode only). If not provided, you'll be prompted in interactive runs.",
+    )
     parser.add_argument("--show-frequency", action="store_true", help="Show frequency alerts in live monitor")
     # SMTP / email options (can be set via env or CLI)
     parser.add_argument("--smtp-host", help="SMTP host for email notifier")
@@ -85,10 +149,34 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.file:
-        # Determine where to write alerts JSON for batch mode
-        alerts_out = args.alerts_json or _config.alerts_path()
-        analysis_mode(args.file, alerts_out=alerts_out)
+        if prompt_email_registration_if_needed and not _has_smtp_overrides(args) and not _env_has_smtp_overrides():
+            prompt_email_registration_if_needed()
+        alerts_out = args.alerts_json or _prompt_alerts_json_path(_config.alerts_path())
+
+        # Determine frequency JSON output for batch mode:
+        # 1) explicit CLI flag --frequency-json
+        # 2) interactive prompt (when TTY)
+        freq_out = args.frequency_json
+        import sys
+
+        if not freq_out and sys.stdin.isatty():
+            try:
+                raw = input(
+                    "Frequency JSON output file (leave blank to skip, or enter name): "
+                ).strip()
+            except Exception:
+                raw = ""
+            if raw:
+                if not raw.lower().endswith(".json"):
+                    raw = raw + ".json"
+                freq_out = raw
+
+        analysis_mode(args.file, alerts_out=alerts_out, frequency_out=freq_out)
     elif args.monitor:
+        # Offer email registration at start if not configured (first run or live monitoring)
+        if prompt_email_registration_if_needed and not _has_smtp_overrides(args) and not _env_has_smtp_overrides():
+            prompt_email_registration_if_needed()
+        alerts_out = args.alerts_json or _prompt_alerts_json_path(_config.alerts_path())
         smtp_cfg = None
         if args.smtp_host or args.smtp_port or args.smtp_user or args.smtp_pass or args.email_from or args.email_to:
             smtp_cfg = {
@@ -106,7 +194,7 @@ def cli() -> None:
             time_window_threshold=args.threshold,
             show_frequency=args.show_frequency,
             smtp_config=smtp_cfg,
-            alerts_json=args.alerts_json,
+            alerts_json=alerts_out,
         )
     elif args.email_test:
         # build SMTP config from CLI args overriding saved config
@@ -155,7 +243,7 @@ def cli() -> None:
                 'alert_type': 'TestEmail',
                 'severity': 'LOW',
                 'evidence': {'test': 'email-test'},
-                'timestamp': datetime.datetime.utcnow().isoformat()
+                'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
             print("Sending test email (dry_run=False)...")
             ok = email_notifier(alert, smtp_config=smtp_cfg, dry_run=False)

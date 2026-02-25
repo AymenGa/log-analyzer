@@ -1,1 +1,36 @@
-f
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies (if ever needed for parsing/SSL/etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Copy project files
+COPY . /app
+
+# Install Python deps (run project directly, no package install)
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+# Default configuration:
+# - MODE: "monitor" (live) or "file" (batch)
+# - LOG_FILE: path to log file inside the container
+# - WINDOW: time-window seconds for live mode
+# - THRESHOLD: attempts threshold
+# - PYTHONUNBUFFERED: ensure logs are flushed immediately (visible in `docker logs`)
+ENV PYTHONUNBUFFERED=1 \
+    MODE=monitor \
+    LOG_FILE=/logs/sample_auth.log \
+    WINDOW=60 \
+    THRESHOLD=3
+
+# SMTP settings should be provided via environment variables:
+# SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM, EMAIL_TO
+
+# Expect logs to be mounted into /logs from the host
+VOLUME ["/logs"]
+
+# Run live monitor by default, or batch if MODE=file
+CMD ["sh", "-c", "if [ \"$MODE\" = \"file\" ]; then python main.py --file ${LOG_FILE} --alerts-json /app/batch_alerts.json --frequency-json /app/batch_frequency.json; else python main.py --monitor ${LOG_FILE} --window ${WINDOW} --threshold ${THRESHOLD} --alerts-json /app/live_alerts.json; fi"]

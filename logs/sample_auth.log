@@ -26,3 +26,4 @@ Nov 27 12:11:57 myhost sshd[12348]: Failed password for root from 10.0.0.4 port 
 Nov 27 12:11:58 myhost sshd[12348]: Failed password for INVALID from 10.0.0.4 port 22 ssh2
 Nov 27 12:11:59 myhost sshd[12348]: Failed password for INVALID from 10.0.0.4 port 22 ssh2
 Nov 27 12:12:00 myhost sshd[12348]: Failed password for INVALID from 10.0.0.4 port 22 ssh2
+

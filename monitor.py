@@ -51,13 +51,13 @@ def monitor(path, time_window_threshold=3, time_window_seconds=60, freq_threshol
     # optional JSON persistence for live alerts
     if alerts_json:
         ae.set_alerts_path(alerts_json)
+        print(f"Live alerts will be written to: {alerts_json}")
 
-    # configure email notifier: prefer CLI-provided smtp_config, else fall back to env vars
+    # configure email notifier: CLI > env > saved config (keyring password)
     cfg = None
     if smtp_config:
         cfg = smtp_config
     else:
-        # build from environment if available
         host = os.getenv('SMTP_HOST')
         to = os.getenv('EMAIL_TO')
         if host or to:
@@ -69,6 +69,17 @@ def monitor(path, time_window_threshold=3, time_window_seconds=60, freq_threshol
                 'from_addr': os.getenv('EMAIL_FROM'),
                 'to_addrs': os.getenv('EMAIL_TO')
             }
+        if not cfg:
+            try:
+                import config as _config
+                saved = _config.load_config()
+                smtp = (saved or {}).get('smtp')
+                if smtp and smtp.get('host') and smtp.get('to_addrs'):
+                    cfg = dict(smtp)
+                    if not cfg.get('password') and hasattr(_config, 'load_smtp_password'):
+                        cfg['password'] = _config.load_smtp_password(cfg.get('user'), cfg.get('host'))
+            except Exception:
+                pass
 
     if email_notifier is not None:
         # determine dry_run: true unless cfg provides both host and to_addrs

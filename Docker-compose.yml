@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  log-analyzer:
+    build:
+      context: .
+      dockerfile: DockerFile
+    container_name: log-analyzer
+    environment:
+      MODE: monitor
+      # Path of the log file inside the container
+      LOG_FILE: /logs/sample_auth.log
+      WINDOW: 60
+      THRESHOLD: 3
+
+      # SMTP configuration – using your current Gmail app password
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: aymengasri62@gmail.com
+      SMTP_PASS: ybrw ftzq uyvz chbh
+      EMAIL_FROM: aymengasri62@gmail.com
+      EMAIL_TO: aymengasri3@gmail.com
+
+    volumes:
+      # Mount host logs directory into container
+      - ./logs:/logs:ro
+
+    restart: unless-stopped
+
+  log-analyzer-batch:
+    build:
+      context: .
+      dockerfile: DockerFile
+    container_name: log-analyzer-batch
+    environment:
+      MODE: file
+      LOG_FILE: /logs/sample_auth.log
+      WINDOW: 60
+      THRESHOLD: 3
+    volumes:
+      - ./logs:/logs:ro
+      # Mount project so batch_alerts.json and batch_frequency.json appear on host
+      - ./:/app
+    restart: "no"

@@ -67,45 +67,53 @@ def render_alert(alert, pretty=True):
         print(" | ".join(parts))
 
 
-def render_dashboard(summary, pretty=True):
-    """Render a small dashboard summary: counts by severity."""
-    # Offer to register email if none configured
+def prompt_email_registration_if_needed():
+    """If no email is configured and we're in an interactive terminal, ask to register. Call once at first run or before live monitoring."""
+    import sys
     try:
         cfg = _config.load_config()
     except Exception:
         cfg = {}
+    if cfg.get('smtp'):
+        return
+    if not sys.stdin.isatty():
+        return
+    try:
+        resp = input("No email configured. Register email for alerts? (y/N): ").strip().lower()
+    except Exception:
+        return
+    if resp != 'y':
+        return
+    host = input("SMTP host (e.g. smtp.gmail.com): ").strip()
+    port = input("SMTP port (e.g. 587): ").strip()
+    user = input("SMTP user (optional): ").strip()
+    password = input("SMTP password (saved securely): ").strip()
+    from_addr = input("From address: ").strip()
+    to_addrs = input("To addresses (comma-separated): ").strip()
+    smtp = {
+        'host': host or None,
+        'port': int(port) if port else None,
+        'user': user or None,
+        'from_addr': from_addr or None,
+        'to_addrs': to_addrs
+    }
+    if hasattr(_config, "save_smtp_password"):
+        _config.save_smtp_password(user or None, host or None, password or None)
+    else:
+        smtp['password'] = password or None
+    cfg['smtp'] = smtp
+    try:
+        _config.save_config(cfg)
+        if RICH_AVAILABLE:
+            console.print("[green]Email config saved.[/green]")
+        else:
+            print("Email config saved.")
+    except Exception as e:
+        print("Failed to save config:", e)
 
-    if not cfg.get('smtp'):
-        try:
-            resp = input("No email configured for alerts. Register now? (y/N): ").strip().lower()
-        except Exception:
-            resp = 'n'
-        if resp == 'y':
-            host = input("SMTP host (e.g. smtp.gmail.com): ").strip()
-            port = input("SMTP port (e.g. 587): ").strip()
-            user = input("SMTP username (leave blank for none): ").strip()
-            password = input("SMTP password (stored securely if keyring available, otherwise kept only in memory): ").strip()
-            from_addr = input("From address (alerts from): ").strip()
-            to_addrs = input("Recipient addresses (comma-separated): ").strip()
-            smtp = {
-                'host': host or None,
-                'port': int(port) if port else None,
-                'user': user or None,
-                'from_addr': from_addr or None,
-                'to_addrs': to_addrs
-            }
-            # Persist password in the OS keyring if supported instead of plaintext config.
-            if hasattr(_config, "save_smtp_password"):
-                _config.save_smtp_password(user or None, host or None, password or None)
-            else:
-                # Legacy fallback: store in config (less secure, kept for compatibility).
-                smtp['password'] = password or None
-            cfg['smtp'] = smtp
-            try:
-                _config.save_config(cfg)
-                print("Saved email configuration to:", _config.config_path())
-            except Exception as e:
-                print("Failed to save config:", e)
+
+def render_dashboard(summary, pretty=True):
+    """Render a small dashboard summary: counts by severity."""
     if pretty and RICH_AVAILABLE:
         table = Table(title="Alert Summary", show_lines=False)
         table.add_column("Severity")
